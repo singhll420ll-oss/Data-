@@ -3,483 +3,298 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bite Me Buddy - Live Database Viewer</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Bite Me Buddy - Database Viewer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .main-card {
-            border-radius: 15px;
-            border: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            background: white;
-        }
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            background: #f8f9fa;
-        }
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-        .connected {
-            background-color: #28a745;
-            animation: pulse 2s infinite;
-        }
-        .disconnected {
-            background-color: #dc3545;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        .table-container {
-            max-height: 500px;
-            overflow-y: auto;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-        }
-        table th {
-            position: sticky;
-            top: 0;
-            background: white;
-            z-index: 10;
-            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);
-        }
-        .refresh-btn {
-            transition: transform 0.3s;
-        }
-        .refresh-btn:hover {
-            transform: rotate(180deg);
-        }
-        .nav-tabs .nav-link.active {
-            font-weight: bold;
-            border-bottom: 3px solid #0d6efd;
-        }
-        .last-update {
-            font-size: 0.9rem;
-            color: #6c757d;
-        }
+        body { background: #f8f9fa; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .online { background: #28a745; animation: pulse 2s infinite; }
+        .offline { background: #dc3545; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        table { font-size: 14px; }
+        table th { background: #f8f9fa; position: sticky; top: 0; }
+        .refresh-btn { transition: transform 0.3s; }
+        .refresh-btn:hover { transform: rotate(180deg); }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Main Card -->
-        <div class="main-card">
-            <!-- Header -->
-            <div class="card-header bg-primary text-white">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h3 class="mb-0">
-                            <i class="fas fa-database me-2"></i>
-                            Bite Me Buddy - Live Database Viewer
-                        </h3>
-                        <small class="opacity-75">Real-time PostgreSQL database monitoring</small>
-                    </div>
-                    <div class="status-indicator">
+        <!-- Header -->
+        <div class="header">
+            <div class="row">
+                <div class="col-md-8">
+                    <h2><i class="fas fa-database"></i> Bite Me Buddy Database</h2>
+                    <p class="mb-0">Live PostgreSQL Database Viewer</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-inline-block bg-white text-dark p-2 rounded">
                         <span class="status-dot" id="statusDot"></span>
-                        <span id="statusText">Checking connection...</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Body -->
-            <div class="card-body">
-                <!-- Control Panel -->
-                <div class="row mb-4">
-                    <div class="col-md-8">
-                        <div class="alert alert-info mb-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <i class="fas fa-clock me-2"></i>
-                                    Last updated: <span id="lastUpdate" class="fw-bold">Never</span>
-                                </div>
-                                <div>
-                                    <i class="fas fa-sync-alt me-2"></i>
-                                    Auto-refresh in: <span id="refreshTimer" class="fw-bold">30</span> seconds
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <button class="btn btn-primary refresh-btn" id="refreshBtn">
-                            <i class="fas fa-sync-alt me-2"></i> Refresh Data
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Database Info -->
-                <div class="alert alert-success">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-check-circle me-2"></i>
-                        <div>
-                            <strong>Connected to:</strong> bite_me_buddy
-                            <span class="mx-2">•</span>
-                            <strong>Host:</strong> dpg-d536f8khg0os738kuhm0-a
-                            <span class="mx-2">•</span>
-                            <strong>User:</strong> bite_me_buddy_user
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Loading Spinner -->
-                <div id="loading" class="text-center py-5">
-                    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
-                    <h4 class="mt-3">Loading database...</h4>
-                    <p class="text-muted">Connecting to PostgreSQL and fetching data</p>
-                </div>
-                
-                <!-- Error Message -->
-                <div id="error" class="alert alert-danger" style="display: none;">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <span id="errorMessage"></span>
-                </div>
-                
-                <!-- Tables Content -->
-                <div id="content" style="display: none;">
-                    <!-- Tabs Navigation -->
-                    <ul class="nav nav-tabs mb-3" id="tableTabs">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="#" id="loadingTab">
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                                Loading tables...
-                            </a>
-                        </li>
-                    </ul>
-                    
-                    <!-- Tables Data -->
-                    <div id="tablesContent">
-                        <!-- Data will be loaded here -->
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Footer -->
-            <div class="card-footer text-muted">
-                <div class="row">
-                    <div class="col-md-6">
-                        <small>
-                            <i class="fas fa-shield-alt me-1"></i>
-                            Secure PostgreSQL Connection
-                        </small>
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <small>
-                            <i class="fas fa-bolt me-1"></i>
-                            Live Data • Auto-refresh every 30 seconds
-                        </small>
+                        <span id="statusText">Checking...</span>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Main Card -->
+        <div class="card">
+            <div class="card-body">
+                <!-- Controls -->
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-clock"></i> Last updated: <span id="lastUpdate">Never</span>
+                            | Auto-refresh in: <span id="timer">30</span>s
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-primary refresh-btn" id="refreshBtn">
+                            <i class="fas fa-sync-alt"></i> Refresh Now
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading -->
+                <div id="loading" class="text-center py-4">
+                    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+                    <h4 class="mt-3">Connecting to Database...</h4>
+                    <p>Please wait while we fetch your data</p>
+                </div>
+
+                <!-- Error -->
+                <div id="error" class="alert alert-danger" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="errorMsg"></span>
+                </div>
+
+                <!-- Content -->
+                <div id="content" style="display: none;">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs mb-3" id="tableTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#">
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                Loading Tables...
+                            </a>
+                        </li>
+                    </ul>
+
+                    <!-- Table Content -->
+                    <div id="tableContent">
+                        <!-- Tables will be loaded here -->
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer text-muted text-center">
+                <small>
+                    <i class="fas fa-database"></i> PostgreSQL | 
+                    <i class="fas fa-bolt"></i> Live Updates | 
+                    <i class="fas fa-mobile-alt"></i> Mobile Friendly
+                </small>
+            </div>
+        </div>
     </div>
 
-    <!-- JavaScript -->
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
     <script>
         // Global variables
-        let autoRefreshInterval;
+        let refreshInterval;
         let countdownInterval;
         
-        // DOM Elements
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
-        const refreshBtn = document.getElementById('refreshBtn');
-        const lastUpdate = document.getElementById('lastUpdate');
-        const refreshTimer = document.getElementById('refreshTimer');
-        const loadingDiv = document.getElementById('loading');
-        const errorDiv = document.getElementById('error');
-        const errorMessage = document.getElementById('errorMessage');
-        const contentDiv = document.getElementById('content');
-        const tableTabs = document.getElementById('tableTabs');
-        const tablesContent = document.getElementById('tablesContent');
-        
-        // Update connection status
+        // Update status
         function updateStatus(connected, message) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
             if (connected) {
-                statusDot.className = 'status-dot connected';
-                statusText.textContent = message || 'Connected to database';
-                statusText.style.color = '#28a745';
+                dot.className = 'status-dot online';
+                text.textContent = message || 'Connected';
+                text.style.color = '#28a745';
             } else {
-                statusDot.className = 'status-dot disconnected';
-                statusText.textContent = message || 'Disconnected';
-                statusText.style.color = '#dc3545';
+                dot.className = 'status-dot offline';
+                text.textContent = message || 'Disconnected';
+                text.style.color = '#dc3545';
             }
         }
         
         // Update last update time
-        function updateLastUpdateTime() {
+        function updateTime() {
             const now = new Date();
-            lastUpdate.textContent = now.toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                second: '2-digit'
-            }) + ' ' + now.toLocaleDateString();
+            document.getElementById('lastUpdate').textContent = 
+                now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'}) + 
+                ' ' + now.toLocaleDateString();
         }
         
-        // Start countdown timer
+        // Start countdown
         function startCountdown(seconds = 30) {
             clearInterval(countdownInterval);
-            refreshTimer.textContent = seconds;
+            document.getElementById('timer').textContent = seconds;
             
             countdownInterval = setInterval(() => {
-                let current = parseInt(refreshTimer.textContent);
+                let current = parseInt(document.getElementById('timer').textContent);
                 if (current <= 1) {
-                    refreshTimer.textContent = 30;
-                    loadAllData();
+                    document.getElementById('timer').textContent = 30;
+                    loadData();
                 } else {
-                    refreshTimer.textContent = current - 1;
+                    document.getElementById('timer').textContent = current - 1;
                 }
             }, 1000);
         }
         
-        // Show/hide loading
-        function showLoading(show) {
-            if (show) {
-                loadingDiv.style.display = 'block';
-                contentDiv.style.display = 'none';
-                errorDiv.style.display = 'none';
-            } else {
-                loadingDiv.style.display = 'none';
-            }
-        }
-        
-        // Show error
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorDiv.style.display = 'block';
-            contentDiv.style.display = 'none';
-        }
-        
-        // Load all data from API
-        async function loadAllData() {
+        // Load data
+        async function loadData() {
             try {
-                showLoading(true);
-                updateStatus(false, 'Loading data...');
-                refreshBtn.disabled = true;
-                refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...';
+                // Show loading
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('content').style.display = 'none';
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('refreshBtn').disabled = true;
+                updateStatus(false, 'Loading...');
                 
-                const response = await fetch('/api/all-data');
+                const response = await fetch('/api/all');
                 const result = await response.json();
                 
                 if (result.success) {
                     updateStatus(true, `Connected (${Object.keys(result.data).length} tables)`);
-                    updateLastUpdateTime();
+                    updateTime();
                     renderTables(result.data);
-                    errorDiv.style.display = 'none';
-                    contentDiv.style.display = 'block';
+                    document.getElementById('content').style.display = 'block';
                 } else {
-                    updateStatus(false, `Error: ${result.error}`);
-                    showError(result.error || 'Failed to load data');
+                    throw new Error(result.error || 'Failed to load data');
                 }
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.error('Error:', error);
                 updateStatus(false, 'Connection failed');
-                showError('Cannot connect to server. Please check if the server is running.');
+                document.getElementById('errorMsg').textContent = error.message;
+                document.getElementById('error').style.display = 'block';
             } finally {
-                refreshBtn.disabled = false;
-                refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh Data';
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('refreshBtn').disabled = false;
                 startCountdown();
             }
         }
         
-        // Format table name for display
-        function formatTableName(tableName) {
-            return tableName
-                .replace(/_/g, ' ')
-                .replace(/\b\w/g, l => l.toUpperCase());
-        }
-        
-        // Format column name for display
-        function formatColumnName(columnName) {
-            return columnName
-                .replace(/_/g, ' ')
-                .replace(/\b\w/g, l => l.toUpperCase());
-        }
-        
-        // Format cell value
-        function formatCellValue(value) {
-            if (value === null || value === undefined) {
-                return '<span class="text-muted fst-italic">null</span>';
-            }
-            
-            if (typeof value === 'boolean') {
-                return value ? 
-                    '<i class="fas fa-check-circle text-success"></i>' : 
-                    '<i class="fas fa-times-circle text-danger"></i>';
-            }
-            
-            if (typeof value === 'object') {
-                return JSON.stringify(value);
-            }
-            
-            if (typeof value === 'string') {
-                // Check if it's a date
-                const date = new Date(value);
-                if (!isNaN(date.getTime())) {
-                    return date.toLocaleString();
-                }
-                
-                // Truncate long strings
-                if (value.length > 100) {
-                    return `<span title="${value}">${value.substring(0, 100)}...</span>`;
-                }
-            }
-            
-            return value;
-        }
-        
-        // Render tables in UI
+        // Render tables
         function renderTables(data) {
+            const tabs = document.getElementById('tableTabs');
+            const content = document.getElementById('tableContent');
+            
+            tabs.innerHTML = '';
+            content.innerHTML = '';
+            
             const tables = Object.keys(data);
             
             if (tables.length === 0) {
-                tablesContent.innerHTML = `
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        No tables found in the database. The database might be empty.
-                    </div>
-                `;
+                content.innerHTML = '<div class="alert alert-warning">No tables found in database</div>';
                 return;
             }
             
-            // Clear previous content
-            tableTabs.innerHTML = '';
-            tablesContent.innerHTML = '';
-            
-            // Create tabs for each table
-            tables.forEach((tableName, index) => {
-                const tableData = data[tableName];
-                const isActive = index === 0;
+            // Create tabs
+            tables.forEach((table, index) => {
+                const tableData = data[table];
                 
-                // Create tab button
-                const tabButton = document.createElement('li');
-                tabButton.className = 'nav-item';
-                tabButton.innerHTML = `
-                    <button class="nav-link ${isActive ? 'active' : ''}" 
-                            onclick="switchTab('${tableName}')"
-                            id="tab-${tableName}">
-                        ${formatTableName(tableName)}
-                        <span class="badge bg-secondary ms-1">${tableData.count || 0}</span>
+                // Tab button
+                const li = document.createElement('li');
+                li.className = 'nav-item';
+                li.innerHTML = `
+                    <button class="nav-link ${index === 0 ? 'active' : ''}" 
+                            onclick="showTable('${table}')"
+                            id="tab-${table}">
+                        ${table}
+                        <span class="badge bg-secondary">${tableData.count || 0}</span>
                     </button>
                 `;
-                tableTabs.appendChild(tabButton);
+                tabs.appendChild(li);
                 
-                // Create table content
-                const tableDiv = document.createElement('div');
-                tableDiv.id = `table-${tableName}`;
-                tableDiv.className = `table-content ${isActive ? '' : 'd-none'}`;
+                // Table content
+                const div = document.createElement('div');
+                div.id = `content-${table}`;
+                div.className = `table-content ${index === 0 ? '' : 'd-none'}`;
                 
                 if (tableData.error) {
-                    tableDiv.innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Error loading table: ${tableData.error}
-                        </div>
-                    `;
-                } else if (!tableData.data || tableData.data.length === 0) {
-                    tableDiv.innerHTML = `
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            No data found in this table.
-                        </div>
-                    `;
+                    div.innerHTML = `<div class="alert alert-danger">Error: ${tableData.error}</div>`;
+                } else if (tableData.data.length === 0) {
+                    div.innerHTML = '<div class="alert alert-info">No data in this table</div>';
                 } else {
-                    // Create table HTML
                     let html = `
-                        <div class="table-container">
-                            <table class="table table-hover">
+                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <table class="table table-hover table-sm">
                                 <thead>
                                     <tr>
                     `;
                     
-                    // Add column headers
-                    tableData.columns.forEach(column => {
-                        html += `<th>${formatColumnName(column)}</th>`;
+                    // Headers
+                    tableData.columns.forEach(col => {
+                        html += `<th>${col.replace(/_/g, ' ').toUpperCase()}</th>`;
                     });
                     
-                    html += `
-                                    </tr>
-                                </thead>
-                                <tbody>
-                    `;
+                    html += `</tr></thead><tbody>`;
                     
-                    // Add data rows
-                    tableData.data.forEach((row, rowIndex) => {
-                        html += `<tr>`;
-                        tableData.columns.forEach(column => {
-                            html += `<td>${formatCellValue(row[column])}</td>`;
+                    // Data rows
+                    tableData.data.forEach(row => {
+                        html += '<tr>';
+                        tableData.columns.forEach(col => {
+                            const value = row[col];
+                            let display = value;
+                            
+                            if (value === null || value === undefined) {
+                                display = '<span class="text-muted">NULL</span>';
+                            } else if (typeof value === 'boolean') {
+                                display = value ? 
+                                    '<i class="fas fa-check text-success"></i>' : 
+                                    '<i class="fas fa-times text-danger"></i>';
+                            }
+                            
+                            html += `<td>${display}</td>`;
                         });
-                        html += `</tr>`;
+                        html += '</tr>';
                     });
                     
-                    html += `
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="mt-3">
-                            <span class="badge bg-primary">${tableData.data.length} records</span>
+                    html += `</tbody></table></div>
+                        <div class="mt-2">
+                            <span class="badge bg-primary">${tableData.data.length} rows</span>
                             <span class="badge bg-info ms-2">${tableData.columns.length} columns</span>
                         </div>
                     `;
                     
-                    tableDiv.innerHTML = html;
+                    div.innerHTML = html;
                 }
                 
-                tablesContent.appendChild(tableDiv);
+                content.appendChild(div);
             });
         }
         
-        // Switch between tabs
-        function switchTab(tableName) {
+        // Show specific table
+        function showTable(tableName) {
             // Update active tab
             document.querySelectorAll('.nav-link').forEach(tab => {
                 tab.classList.remove('active');
             });
             document.getElementById(`tab-${tableName}`).classList.add('active');
             
-            // Show selected table content
+            // Show selected content
             document.querySelectorAll('.table-content').forEach(content => {
                 content.classList.add('d-none');
             });
-            document.getElementById(`table-${tableName}`).classList.remove('d-none');
+            document.getElementById(`content-${tableName}`).classList.remove('d-none');
         }
         
-        // Event Listeners
-        refreshBtn.addEventListener('click', loadAllData);
+        // Event listeners
+        document.getElementById('refreshBtn').addEventListener('click', loadData);
         
         // Initial load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check health first
-            fetch('/api/health')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'healthy') {
-                        loadAllData();
-                    } else {
-                        showError('Database connection failed: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    showError('Cannot connect to server');
-                });
-            
-            // Start auto-refresh interval
-            autoRefreshInterval = setInterval(loadAllData, 30000);
-        });
+        loadData();
         
-        // Clean up intervals
-        window.addEventListener('beforeunload', function() {
-            clearInterval(autoRefreshInterval);
+        // Auto-refresh every 30 seconds
+        refreshInterval = setInterval(loadData, 30000);
+        
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            clearInterval(refreshInterval);
             clearInterval(countdownInterval);
         });
     </script>
