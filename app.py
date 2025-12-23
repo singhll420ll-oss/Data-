@@ -1,6 +1,6 @@
 """
-Bite Me Buddy Database Viewer
-Simple Flask App for PostgreSQL
+Bite Me Buddy - PostgreSQL Database Viewer
+Docker Compatible Version
 """
 
 from flask import Flask, render_template, jsonify
@@ -11,67 +11,58 @@ import os
 app = Flask(__name__)
 
 # Database URL
-DB_URL = "postgresql://bite_me_buddy_user:6Mb7axQ89EkOQTQnqw6shT5CaO2lFY1Z@dpg-d536f8khg0os738kuhm0-a/bite_me_buddy"
+DATABASE_URL = "postgresql://bite_me_buddy_user:6Mb7axQ89EkOQTQnqw6shT5CaO2lFY1Z@dpg-d536f8khg0os738kuhm0-a/bite_me_buddy"
 
 def get_db():
     """Get database connection"""
     try:
-        return psycopg2.connect(DB_URL, sslmode='require')
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        return conn
     except Exception as e:
-        print(f"Database error: {e}")
+        print(f"Database connection error: {e}")
         raise
 
 @app.route('/')
-def index():
+def home():
     """Home page"""
     return render_template('index.html')
 
 @app.route('/api/health')
 def health():
-    """Health check"""
+    """Health check endpoint"""
     try:
         conn = get_db()
         cur = conn.cursor()
         cur.execute('SELECT 1')
         cur.close()
         conn.close()
-        return jsonify({'status': 'ok', 'db': 'connected'})
+        return jsonify({'status': 'ok', 'database': 'connected'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/tables')
 def tables():
-    """Get all tables"""
+    """Get all table names"""
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("""
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema='public' 
-            ORDER BY table_name
-        """)
-        tables = [row[0] for row in cur.fetchall()]
+        cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
+        tables_list = [row[0] for row in cur.fetchall()]
         cur.close()
         conn.close()
-        return jsonify({'success': True, 'tables': tables})
+        return jsonify({'success': True, 'tables': tables_list})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/data/<table_name>')
 def table_data(table_name):
-    """Get data from a table"""
+    """Get data from specific table"""
     try:
         conn = get_db()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
         # Get columns
-        cur.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name=%s 
-            ORDER BY ordinal_position
-        """, (table_name,))
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name=%s", (table_name,))
         columns = [row['column_name'] for row in cur.fetchall()]
         
         # Get data
@@ -83,13 +74,7 @@ def table_data(table_name):
         
         cur.close()
         conn.close()
-        return jsonify({
-            'success': True,
-            'table': table_name,
-            'columns': columns,
-            'data': data,
-            'count': len(data)
-        })
+        return jsonify({'success': True, 'table': table_name, 'columns': columns, 'data': data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -97,7 +82,6 @@ def table_data(table_name):
 def all_data():
     """Get data from all tables"""
     try:
-        # Get all tables
         conn = get_db()
         cur = conn.cursor()
         cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
@@ -124,19 +108,9 @@ def all_data():
                 
                 cur.close()
                 conn.close()
-                
-                result[table] = {
-                    'columns': columns,
-                    'data': data,
-                    'count': len(data)
-                }
-            except Exception as e:
-                result[table] = {
-                    'error': str(e),
-                    'columns': [],
-                    'data': [],
-                    'count': 0
-                }
+                result[table] = {'columns': columns, 'data': data, 'count': len(data)}
+            except:
+                result[table] = {'error': 'Failed to load', 'data': []}
         
         return jsonify({'success': True, 'data': result})
     except Exception as e:
@@ -144,5 +118,4 @@ def all_data():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting server on port {port}")
     app.run(host='0.0.0.0', port=port)
