@@ -3,337 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Database Viewer - Bite Me Buddy</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Bite Me Buddy - Live Database Viewer</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --primary-color: #4361ee;
-            --secondary-color: #3a0ca3;
-            --success-color: #4cc9f0;
-            --light-bg: #f8f9fa;
-            --dark-text: #212529;
-        }
-        
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
         }
-        
-        .navbar-brand {
-            font-weight: 700;
-            color: var(--primary-color) !important;
-        }
-        
-        .status-badge {
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        
-        .status-connected {
-            background-color: #d1f7c4;
-            color: #2e7d32;
-        }
-        
-        .status-disconnected {
-            background-color: #ffcdd2;
-            color: #c62828;
-        }
-        
-        .card {
-            border: none;
+        .main-card {
             border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            transition: transform 0.3s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .card-header {
-            background-color: var(--primary-color);
-            color: white;
-            border-radius: 15px 15px 0 0 !important;
-            font-weight: 600;
-            padding: 15px 20px;
-        }
-        
-        .table-container {
-            overflow-x: auto;
-            max-height: 500px;
-            border-radius: 0 0 10px 10px;
-        }
-        
-        table {
-            min-width: 100%;
-            margin-bottom: 0;
-        }
-        
-        thead {
-            position: sticky;
-            top: 0;
-            background-color: #f8f9fa;
-            z-index: 10;
-        }
-        
-        th {
-            background-color: var(--light-bg);
-            font-weight: 600;
-            color: var(--dark-text);
-            border-bottom: 2px solid #dee2e6;
-            padding: 12px 15px;
-            white-space: nowrap;
-        }
-        
-        td {
-            padding: 10px 15px;
-            border-bottom: 1px solid #dee2e6;
-            vertical-align: middle;
-        }
-        
-        tbody tr:hover {
-            background-color: rgba(67, 97, 238, 0.05);
-        }
-        
-        .loader {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid var(--primary-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .refresh-btn {
-            background-color: var(--primary-color);
-            color: white;
             border: none;
-            padding: 8px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            background: white;
         }
-        
-        .refresh-btn:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-2px);
-        }
-        
-        .refresh-btn:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-        }
-        
-        .last-update {
-            font-size: 0.85rem;
-            color: #6c757d;
-        }
-        
-        .table-counter {
-            background-color: #e9ecef;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.9rem;
-            color: #495057;
-        }
-        
-        .no-data {
-            text-align: center;
-            padding: 40px 20px;
-            color: #6c757d;
-        }
-        
-        .no-data i {
-            font-size: 48px;
-            margin-bottom: 15px;
-            color: #adb5bd;
-        }
-        
-        .tab-content {
-            background-color: white;
-            border-radius: 0 0 10px 10px;
-            padding: 0;
-        }
-        
-        .nav-tabs .nav-link {
-            border: none;
-            color: #6c757d;
-            font-weight: 500;
-            padding: 10px 20px;
-        }
-        
-        .nav-tabs .nav-link.active {
-            color: var(--primary-color);
-            border-bottom: 3px solid var(--primary-color);
-            background-color: transparent;
-        }
-        
-        .connection-status {
-            display: flex;
+        .status-indicator {
+            display: inline-flex;
             align-items: center;
             gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: #f8f9fa;
         }
-        
-        .connection-dot {
+        .status-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background-color: #6c757d;
         }
-        
-        .connection-dot.connected {
+        .connected {
             background-color: #28a745;
             animation: pulse 2s infinite;
         }
-        
+        .disconnected {
+            background-color: #dc3545;
+        }
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
-        
-        .footer {
-            margin-top: 40px;
-            padding: 20px 0;
-            color: rgba(255,255,255,0.8);
-            text-align: center;
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+        table th {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);
+        }
+        .refresh-btn {
+            transition: transform 0.3s;
+        }
+        .refresh-btn:hover {
+            transform: rotate(180deg);
+        }
+        .nav-tabs .nav-link.active {
+            font-weight: bold;
+            border-bottom: 3px solid #0d6efd;
+        }
+        .last-update {
             font-size: 0.9rem;
+            color: #6c757d;
         }
     </style>
 </head>
 <body>
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <i class="fas fa-database me-2"></i>Bite Me Buddy Database Viewer
-            </a>
-            <div class="d-flex align-items-center">
-                <div class="connection-status me-3">
-                    <div class="connection-dot" id="connectionDot"></div>
-                    <span id="connectionStatus">Checking connection...</span>
-                </div>
-                <button class="refresh-btn" id="refreshBtn">
-                    <i class="fas fa-sync-alt me-2"></i>Refresh All
-                </button>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Main Content -->
-    <div class="container mt-4">
-        <!-- Database Info Card -->
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-info-circle me-2"></i>Database Information
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Database:</strong> bite_me_buddy</p>
-                        <p><strong>Host:</strong> dpg-d536f8khg0os738kuhm0-a</p>
+    <div class="container">
+        <!-- Main Card -->
+        <div class="main-card">
+            <!-- Header -->
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">
+                            <i class="fas fa-database me-2"></i>
+                            Bite Me Buddy - Live Database Viewer
+                        </h3>
+                        <small class="opacity-75">Real-time PostgreSQL database monitoring</small>
                     </div>
-                    <div class="col-md-6">
-                        <p><strong>User:</strong> bite_me_buddy_user</p>
-                        <p><strong>Last Updated:</strong> <span id="lastUpdateTime">Never</span></p>
+                    <div class="status-indicator">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="statusText">Checking connection...</span>
                     </div>
-                </div>
-                <div class="alert alert-info mt-2">
-                    <small>
-                        <i class="fas fa-exclamation-circle me-2"></i>
-                        Showing live data from your PostgreSQL database. Data refreshes automatically every 30 seconds.
-                    </small>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tables Tabs -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="fas fa-table me-2"></i>Database Tables
-                    <span class="table-counter ms-2" id="tableCount">0 tables</span>
-                </div>
-                <div class="last-update">
-                    Auto-refresh in <span id="refreshTimer">30</span>s
                 </div>
             </div>
             
-            <!-- Tabs Navigation -->
-            <ul class="nav nav-tabs" id="tableTabs" role="tablist">
-                <!-- Tabs will be dynamically generated here -->
-            </ul>
-
-            <!-- Tabs Content -->
-            <div class="tab-content p-3" id="tableTabsContent">
-                <!-- Tab content will be dynamically generated here -->
+            <!-- Body -->
+            <div class="card-body">
+                <!-- Control Panel -->
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <div class="alert alert-info mb-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-clock me-2"></i>
+                                    Last updated: <span id="lastUpdate" class="fw-bold">Never</span>
+                                </div>
+                                <div>
+                                    <i class="fas fa-sync-alt me-2"></i>
+                                    Auto-refresh in: <span id="refreshTimer" class="fw-bold">30</span> seconds
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn btn-primary refresh-btn" id="refreshBtn">
+                            <i class="fas fa-sync-alt me-2"></i> Refresh Data
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Database Info -->
+                <div class="alert alert-success">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <div>
+                            <strong>Connected to:</strong> bite_me_buddy
+                            <span class="mx-2">•</span>
+                            <strong>Host:</strong> dpg-d536f8khg0os738kuhm0-a
+                            <span class="mx-2">•</span>
+                            <strong>User:</strong> bite_me_buddy_user
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Loading Spinner -->
+                <div id="loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+                    <h4 class="mt-3">Loading database...</h4>
+                    <p class="text-muted">Connecting to PostgreSQL and fetching data</p>
+                </div>
+                
+                <!-- Error Message -->
+                <div id="error" class="alert alert-danger" style="display: none;">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span id="errorMessage"></span>
+                </div>
+                
+                <!-- Tables Content -->
+                <div id="content" style="display: none;">
+                    <!-- Tabs Navigation -->
+                    <ul class="nav nav-tabs mb-3" id="tableTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" id="loadingTab">
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                Loading tables...
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <!-- Tables Data -->
+                    <div id="tablesContent">
+                        <!-- Data will be loaded here -->
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="footer">
-        <div class="container">
-            <p>Live Database Viewer • Connected to PostgreSQL • Data updates in real-time</p>
-            <p class="mb-0">
-                <small>
-                    <i class="fas fa-shield-alt me-1"></i>
-                    Database credentials are securely stored on the server and never exposed to the client
-                </small>
-            </p>
+            
+            <!-- Footer -->
+            <div class="card-footer text-muted">
+                <div class="row">
+                    <div class="col-md-6">
+                        <small>
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Secure PostgreSQL Connection
+                        </small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <small>
+                            <i class="fas fa-bolt me-1"></i>
+                            Live Data • Auto-refresh every 30 seconds
+                        </small>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let refreshInterval;
+        // Global variables
+        let autoRefreshInterval;
         let countdownInterval;
-        let currentTables = [];
-
+        
         // DOM Elements
-        const connectionDot = document.getElementById('connectionDot');
-        const connectionStatus = document.getElementById('connectionStatus');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
         const refreshBtn = document.getElementById('refreshBtn');
-        const lastUpdateTime = document.getElementById('lastUpdateTime');
-        const tableCount = document.getElementById('tableCount');
+        const lastUpdate = document.getElementById('lastUpdate');
         const refreshTimer = document.getElementById('refreshTimer');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const errorMessage = document.getElementById('errorMessage');
+        const contentDiv = document.getElementById('content');
         const tableTabs = document.getElementById('tableTabs');
-        const tableTabsContent = document.getElementById('tableTabsContent');
-
-        // Format date/time
-        function formatDateTime(date) {
-            return date.toLocaleTimeString([], { 
+        const tablesContent = document.getElementById('tablesContent');
+        
+        // Update connection status
+        function updateStatus(connected, message) {
+            if (connected) {
+                statusDot.className = 'status-dot connected';
+                statusText.textContent = message || 'Connected to database';
+                statusText.style.color = '#28a745';
+            } else {
+                statusDot.className = 'status-dot disconnected';
+                statusText.textContent = message || 'Disconnected';
+                statusText.style.color = '#dc3545';
+            }
+        }
+        
+        // Update last update time
+        function updateLastUpdateTime() {
+            const now = new Date();
+            lastUpdate.textContent = now.toLocaleTimeString([], { 
                 hour: '2-digit', 
                 minute: '2-digit',
                 second: '2-digit'
-            }) + ' ' + date.toLocaleDateString();
+            }) + ' ' + now.toLocaleDateString();
         }
-
-        // Update connection status
-        function updateConnectionStatus(connected, message) {
-            if (connected) {
-                connectionDot.className = 'connection-dot connected';
-                connectionStatus.textContent = message || 'Connected to database';
-                connectionStatus.style.color = '#28a745';
-            } else {
-                connectionDot.className = 'connection-dot';
-                connectionStatus.textContent = message || 'Disconnected from database';
-                connectionStatus.style.color = '#dc3545';
-            }
-        }
-
+        
         // Start countdown timer
         function startCountdown(seconds = 30) {
             clearInterval(countdownInterval);
@@ -349,220 +241,245 @@
                 }
             }, 1000);
         }
-
-        // Create table HTML
-        function createTableHTML(tableName, columns, data) {
-            if (!data || data.length === 0) {
-                return `
-                    <div class="no-data">
-                        <i class="fas fa-database"></i>
-                        <h5>No data available</h5>
-                        <p>This table is empty or contains no records.</p>
-                    </div>
-                `;
+        
+        // Show/hide loading
+        function showLoading(show) {
+            if (show) {
+                loadingDiv.style.display = 'block';
+                contentDiv.style.display = 'none';
+                errorDiv.style.display = 'none';
+            } else {
+                loadingDiv.style.display = 'none';
             }
-
-            let html = `
-                <div class="table-container">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-            `;
-
-            // Create table headers
-            columns.forEach(column => {
-                const formattedName = column
-                    .replace(/_/g, ' ')
-                    .replace(/\b\w/g, l => l.toUpperCase());
-                html += `<th>${formattedName}</th>`;
-            });
-
-            html += `
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            // Create table rows
-            data.forEach(row => {
-                html += `<tr>`;
-                columns.forEach(column => {
-                    let value = row[column];
-                    
-                    // Format special values
-                    if (value === null || value === undefined) {
-                        value = '<span class="text-muted">NULL</span>';
-                    } else if (typeof value === 'boolean') {
-                        value = value ? 
-                            '<i class="fas fa-check-circle text-success"></i>' : 
-                            '<i class="fas fa-times-circle text-danger"></i>';
-                    } else if (typeof value === 'object') {
-                        value = JSON.stringify(value);
-                    }
-                    
-                    html += `<td>${value}</td>`;
-                });
-                html += `</tr>`;
-            });
-
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-3 text-end">
-                    <span class="badge bg-secondary">${data.length} records</span>
-                </div>
-            `;
-
-            return html;
         }
-
-        // Load all tables data
+        
+        // Show error
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorDiv.style.display = 'block';
+            contentDiv.style.display = 'none';
+        }
+        
+        // Load all data from API
         async function loadAllData() {
             try {
-                updateConnectionStatus(false, 'Loading data...');
+                showLoading(true);
+                updateStatus(false, 'Loading data...');
                 refreshBtn.disabled = true;
-                refreshBtn.innerHTML = '<span class="loader me-2"></span> Loading...';
-
+                refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...';
+                
                 const response = await fetch('/api/all-data');
                 const result = await response.json();
-
+                
                 if (result.success) {
-                    updateConnectionStatus(true, `Connected (${Object.keys(result.data).length} tables)`);
+                    updateStatus(true, `Connected (${Object.keys(result.data).length} tables)`);
                     updateLastUpdateTime();
-                    
-                    // Update table count
-                    const tableCountValue = Object.keys(result.data).length;
-                    tableCount.textContent = `${tableCountValue} table${tableCountValue !== 1 ? 's' : ''}`;
-                    
-                    // Clear previous tabs
-                    tableTabs.innerHTML = '';
-                    tableTabsContent.innerHTML = '';
-                    
-                    // Create tabs for each table
-                    Object.keys(result.data).forEach((tableName, index) => {
-                        const tableData = result.data[tableName];
-                        const isActive = index === 0;
-                        
-                        // Create tab button
-                        const tabButton = document.createElement('li');
-                        tabButton.className = 'nav-item';
-                        tabButton.innerHTML = `
-                            <button class="nav-link ${isActive ? 'active' : ''}" 
-                                    id="tab-${tableName}" 
-                                    data-bs-toggle="tab" 
-                                    data-bs-target="#content-${tableName}"
-                                    type="button">
-                                ${tableName}
-                                <span class="badge bg-secondary ms-1">${tableData.count || 0}</span>
-                            </button>
-                        `;
-                        tableTabs.appendChild(tabButton);
-                        
-                        // Create tab content
-                        const tabContent = document.createElement('div');
-                        tabContent.className = `tab-pane fade ${isActive ? 'show active' : ''}`;
-                        tabContent.id = `content-${tableName}`;
-                        
-                        if (tableData.error) {
-                            tabContent.innerHTML = `
-                                <div class="alert alert-danger">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    Error loading table ${tableName}: ${tableData.error}
-                                </div>
-                            `;
-                        } else {
-                            tabContent.innerHTML = createTableHTML(
-                                tableName,
-                                tableData.columns || [],
-                                tableData.data || []
-                            );
-                        }
-                        
-                        tableTabsContent.appendChild(tabContent);
-                    });
-                    
-                    // If no tables found
-                    if (Object.keys(result.data).length === 0) {
-                        tableTabsContent.innerHTML = `
-                            <div class="no-data">
-                                <i class="fas fa-search"></i>
-                                <h5>No tables found</h5>
-                                <p>The database doesn't contain any tables or we couldn't connect to it.</p>
-                            </div>
-                        `;
-                    }
+                    renderTables(result.data);
+                    errorDiv.style.display = 'none';
+                    contentDiv.style.display = 'block';
                 } else {
-                    updateConnectionStatus(false, `Error: ${result.error}`);
-                    tableTabsContent.innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Error loading data: ${result.error}
-                        </div>
-                    `;
+                    updateStatus(false, `Error: ${result.error}`);
+                    showError(result.error || 'Failed to load data');
                 }
             } catch (error) {
                 console.error('Error loading data:', error);
-                updateConnectionStatus(false, 'Connection error');
-                tableTabsContent.innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Failed to connect to the server. Please check if the backend is running.
-                    </div>
-                `;
+                updateStatus(false, 'Connection failed');
+                showError('Cannot connect to server. Please check if the server is running.');
             } finally {
                 refreshBtn.disabled = false;
-                refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh All';
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Refresh Data';
                 startCountdown();
             }
         }
-
-        // Update last update time
-        function updateLastUpdateTime() {
-            lastUpdateTime.textContent = formatDateTime(new Date());
+        
+        // Format table name for display
+        function formatTableName(tableName) {
+            return tableName
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
         }
-
-        // Check server health
-        async function checkHealth() {
-            try {
-                const response = await fetch('/api/health');
-                const data = await response.json();
-                
-                if (data.status === 'healthy') {
-                    updateConnectionStatus(true, 'Connected to database');
-                    return true;
-                } else {
-                    updateConnectionStatus(false, 'Database connection failed');
-                    return false;
-                }
-            } catch (error) {
-                updateConnectionStatus(false, 'Server not responding');
-                return false;
+        
+        // Format column name for display
+        function formatColumnName(columnName) {
+            return columnName
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        // Format cell value
+        function formatCellValue(value) {
+            if (value === null || value === undefined) {
+                return '<span class="text-muted fst-italic">null</span>';
             }
+            
+            if (typeof value === 'boolean') {
+                return value ? 
+                    '<i class="fas fa-check-circle text-success"></i>' : 
+                    '<i class="fas fa-times-circle text-danger"></i>';
+            }
+            
+            if (typeof value === 'object') {
+                return JSON.stringify(value);
+            }
+            
+            if (typeof value === 'string') {
+                // Check if it's a date
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                    return date.toLocaleString();
+                }
+                
+                // Truncate long strings
+                if (value.length > 100) {
+                    return `<span title="${value}">${value.substring(0, 100)}...</span>`;
+                }
+            }
+            
+            return value;
         }
-
-        // Initialize
+        
+        // Render tables in UI
+        function renderTables(data) {
+            const tables = Object.keys(data);
+            
+            if (tables.length === 0) {
+                tablesContent.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No tables found in the database. The database might be empty.
+                    </div>
+                `;
+                return;
+            }
+            
+            // Clear previous content
+            tableTabs.innerHTML = '';
+            tablesContent.innerHTML = '';
+            
+            // Create tabs for each table
+            tables.forEach((tableName, index) => {
+                const tableData = data[tableName];
+                const isActive = index === 0;
+                
+                // Create tab button
+                const tabButton = document.createElement('li');
+                tabButton.className = 'nav-item';
+                tabButton.innerHTML = `
+                    <button class="nav-link ${isActive ? 'active' : ''}" 
+                            onclick="switchTab('${tableName}')"
+                            id="tab-${tableName}">
+                        ${formatTableName(tableName)}
+                        <span class="badge bg-secondary ms-1">${tableData.count || 0}</span>
+                    </button>
+                `;
+                tableTabs.appendChild(tabButton);
+                
+                // Create table content
+                const tableDiv = document.createElement('div');
+                tableDiv.id = `table-${tableName}`;
+                tableDiv.className = `table-content ${isActive ? '' : 'd-none'}`;
+                
+                if (tableData.error) {
+                    tableDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Error loading table: ${tableData.error}
+                        </div>
+                    `;
+                } else if (!tableData.data || tableData.data.length === 0) {
+                    tableDiv.innerHTML = `
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No data found in this table.
+                        </div>
+                    `;
+                } else {
+                    // Create table HTML
+                    let html = `
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                    `;
+                    
+                    // Add column headers
+                    tableData.columns.forEach(column => {
+                        html += `<th>${formatColumnName(column)}</th>`;
+                    });
+                    
+                    html += `
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    // Add data rows
+                    tableData.data.forEach((row, rowIndex) => {
+                        html += `<tr>`;
+                        tableData.columns.forEach(column => {
+                            html += `<td>${formatCellValue(row[column])}</td>`;
+                        });
+                        html += `</tr>`;
+                    });
+                    
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3">
+                            <span class="badge bg-primary">${tableData.data.length} records</span>
+                            <span class="badge bg-info ms-2">${tableData.columns.length} columns</span>
+                        </div>
+                    `;
+                    
+                    tableDiv.innerHTML = html;
+                }
+                
+                tablesContent.appendChild(tableDiv);
+            });
+        }
+        
+        // Switch between tabs
+        function switchTab(tableName) {
+            // Update active tab
+            document.querySelectorAll('.nav-link').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(`tab-${tableName}`).classList.add('active');
+            
+            // Show selected table content
+            document.querySelectorAll('.table-content').forEach(content => {
+                content.classList.add('d-none');
+            });
+            document.getElementById(`table-${tableName}`).classList.remove('d-none');
+        }
+        
+        // Event Listeners
+        refreshBtn.addEventListener('click', loadAllData);
+        
+        // Initial load
         document.addEventListener('DOMContentLoaded', function() {
             // Check health first
-            checkHealth().then(isHealthy => {
-                if (isHealthy) {
-                    loadAllData();
-                }
-            });
+            fetch('/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'healthy') {
+                        loadAllData();
+                    } else {
+                        showError('Database connection failed: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    showError('Cannot connect to server');
+                });
             
-            // Set up refresh button
-            refreshBtn.addEventListener('click', loadAllData);
-            
-            // Set up auto-refresh
-            refreshInterval = setInterval(loadAllData, 30000);
-            
-            // Initial countdown
-            startCountdown();
+            // Start auto-refresh interval
+            autoRefreshInterval = setInterval(loadAllData, 30000);
         });
-
-        // Clean up intervals when page unloads
+        
+        // Clean up intervals
         window.addEventListener('beforeunload', function() {
-            clearInterval(refreshInterval);
+            clearInterval(autoRefreshInterval);
             clearInterval(countdownInterval);
         });
     </script>
