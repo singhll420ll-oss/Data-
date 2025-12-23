@@ -1,104 +1,92 @@
 """
-Updated Main Flask Application for Bite Me Buddy Live Database Viewer
-Compatible with Python 3.13
+Bite Me Buddy - Live PostgreSQL Database Viewer
+Fixed Version - No Log File Issues
 """
 
 from flask import Flask, render_template, jsonify, request
-import psycopg
-from psycopg.rows import dict_row
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 import logging
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-# Initialize Flask App
 app = Flask(__name__)
 
-# Configure Logging
+# Simple logging to console only - NO FILE LOGGING
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/app.log'),
-        logging.StreamHandler()
-    ]
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Database configuration
-DATABASE_URL = os.environ.get('DATABASE_URL', 
-    'postgresql://bite_me_buddy_user:6Mb7axQ89EkOQTQnqw6shT5CaO2lFY1Z@dpg-d536f8khg0os738kuhm0-a/bite_me_buddy')
+# Your Database URL
+DATABASE_URL = "postgresql://bite_me_buddy_user:6Mb7axQ89EkOQTQnqw6shT5CaO2lFY1Z@dpg-d536f8khg0os738kuhm0-a/bite_me_buddy"
 
 def get_db_connection():
-    """Create and return a database connection using psycopg"""
+    """Create database connection"""
     try:
-        conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
-        logger.debug("Database connection established")
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        print("✅ Database connection successful")
         return conn
     except Exception as e:
-        logger.error(f"Database connection failed: {str(e)}")
+        print(f"❌ Database connection failed: {str(e)}")
         raise
 
 @app.route('/')
-def index():
-    """Render main dashboard page"""
-    logger.info("Home page accessed")
+def home():
+    """Home page - show HTML interface"""
+    print("📄 Home page accessed")
     return render_template('index.html')
 
 @app.route('/api/health')
 def health_check():
-    """Check database connection health"""
+    """Check if database is connected"""
     try:
         conn = get_db_connection()
-        with conn.cursor() as cur:
-            cur.execute('SELECT 1')
+        cur = conn.cursor()
+        cur.execute('SELECT 1')
+        cur.close()
         conn.close()
         
-        logger.info("Health check: Database connected")
+        print("✅ Health check: Database connected")
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
-            'timestamp': datetime.now().isoformat(),
-            'service': 'Bite Me Buddy Live Viewer',
-            'python_version': os.environ.get('PYTHON_VERSION', 'Unknown')
+            'timestamp': datetime.now().isoformat()
         })
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
+        print(f"❌ Health check failed: {str(e)}")
         return jsonify({
             'status': 'unhealthy',
-            'database': 'disconnected',
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
+            'error': str(e)
         }), 500
 
 @app.route('/api/tables')
 def get_tables():
-    """Get list of all tables in database"""
+    """Get list of all tables"""
     try:
         conn = get_db_connection()
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT table_name 
-                FROM information_schema.tables 
-                WHERE table_schema = 'public'
-                ORDER BY table_name;
-            """)
-            
-            tables = [row['table_name'] for row in cur.fetchall()]
+        cur = conn.cursor()
         
+        cur.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+            ORDER BY table_name;
+        """)
+        
+        tables = [row[0] for row in cur.fetchall()]
+        cur.close()
         conn.close()
         
-        logger.info(f"Retrieved {len(tables)} tables")
+        print(f"✅ Retrieved {len(tables)} tables")
         return jsonify({
             'success': True,
             'tables': tables,
             'count': len(tables)
         })
     except Exception as e:
-        logger.error(f"Error fetching tables: {str(e)}")
+        print(f"❌ Error fetching tables: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -108,47 +96,43 @@ def get_tables():
 def get_table_data(table_name):
     """Get data from specific table"""
     try:
-        # Get limit from query parameters
         limit = request.args.get('limit', default=100, type=int)
         
         conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Get column information
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT column_name, data_type 
-                FROM information_schema.columns 
-                WHERE table_name = %s
-                ORDER BY ordinal_position;
-            """, (table_name,))
-            
-            columns_info = cur.fetchall()
-            columns = [col['column_name'] for col in columns_info]
+        # Get column names
+        cur.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = %s
+            ORDER BY ordinal_position;
+        """, (table_name,))
         
-        # Get table data
+        columns = [row['column_name'] for row in cur.fetchall()]
+        
+        # Get data
         data = []
         if columns:
-            with conn.cursor() as cur:
-                columns_str = ', '.join([f'"{col}"' for col in columns])
-                query = f'SELECT {columns_str} FROM "{table_name}" LIMIT %s'
-                cur.execute(query, (limit,))
-                data = cur.fetchall()
+            columns_str = ', '.join([f'"{col}"' for col in columns])
+            query = f'SELECT {columns_str} FROM "{table_name}" LIMIT %s'
+            cur.execute(query, (limit,))
+            data = cur.fetchall()
         
+        cur.close()
         conn.close()
         
-        logger.info(f"Retrieved {len(data)} rows from table '{table_name}'")
+        print(f"✅ Retrieved {len(data)} rows from table '{table_name}'")
         
         return jsonify({
             'success': True,
             'table_name': table_name,
             'columns': columns,
             'data': data,
-            'count': len(data),
-            'limit': limit,
-            'timestamp': datetime.now().isoformat()
+            'count': len(data)
         })
     except Exception as e:
-        logger.error(f"Error fetching data from table {table_name}: {str(e)}")
+        print(f"❌ Error fetching data from table {table_name}: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -156,98 +140,100 @@ def get_table_data(table_name):
 
 @app.route('/api/all-data')
 def get_all_data():
-    """Get data from all tables (limited rows per table)"""
+    """Get data from all tables"""
     try:
-        limit_per_table = request.args.get('limit', default=50, type=int)
+        limit = request.args.get('limit', default=50, type=int)
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
         
         # Get all tables
-        conn = get_db_connection()
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT table_name 
-                FROM information_schema.tables 
-                WHERE table_schema = 'public'
-                ORDER BY table_name;
-            """)
-            
-            tables = [row['table_name'] for row in cur.fetchall()][:10]  # Limit to first 10 tables
+        cur.execute("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+            ORDER BY table_name;
+        """)
+        
+        tables = [row[0] for row in cur.fetchall()][:5]  # First 5 tables only
+        cur.close()
         conn.close()
         
-        all_data = {}
+        result = {}
         
         for table in tables:
             try:
-                # Fetch data for each table
                 conn = get_db_connection()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 
-                # Get columns
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name = %s
-                        ORDER BY ordinal_position;
-                    """, (table,))
-                    
-                    columns = [row['column_name'] for row in cur.fetchall()]
+                # Get columns for this table
+                cur.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = %s
+                    ORDER BY ordinal_position;
+                """, (table,))
+                
+                columns = [row['column_name'] for row in cur.fetchall()]
                 
                 # Get data
                 data = []
                 if columns:
-                    with conn.cursor() as cur:
-                        columns_str = ', '.join([f'"{col}"' for col in columns])
-                        query = f'SELECT {columns_str} FROM "{table}" LIMIT %s'
-                        cur.execute(query, (limit_per_table,))
-                        data = cur.fetchall()
+                    columns_str = ', '.join([f'"{col}"' for col in columns])
+                    query = f'SELECT {columns_str} FROM "{table}" LIMIT %s'
+                    cur.execute(query, (limit,))
+                    data = cur.fetchall()
                 
+                cur.close()
                 conn.close()
                 
-                all_data[table] = {
+                result[table] = {
                     'columns': columns,
                     'data': data,
                     'count': len(data)
                 }
                 
+                print(f"✅ Loaded table '{table}' with {len(data)} rows")
+                
             except Exception as e:
-                logger.warning(f"Could not fetch data from table {table}: {str(e)}")
-                all_data[table] = {
+                result[table] = {
                     'error': str(e),
                     'columns': [],
                     'data': [],
                     'count': 0
                 }
+                print(f"⚠️ Could not load table '{table}': {str(e)}")
         
-        logger.info(f"Retrieved data from {len(all_data)} tables")
+        print(f"✅ Successfully loaded data from {len(result)} tables")
         
         return jsonify({
             'success': True,
-            'data': all_data,
-            'total_tables': len(tables),
+            'data': result,
             'timestamp': datetime.now().isoformat()
         })
+        
     except Exception as e:
-        logger.error(f"Error fetching all data: {str(e)}")
+        print(f"❌ Error in get_all_data: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
 
 @app.errorhandler(404)
-def page_not_found(e):
+def not_found(e):
     """Handle 404 errors"""
-    logger.warning(f"404 error: {request.url}")
-    return render_template('404.html'), 404
+    print(f"❌ 404 Error: {request.url}")
+    return jsonify({'error': 'Not found'}), 404
 
 @app.errorhandler(500)
-def internal_server_error(e):
+def server_error(e):
     """Handle 500 errors"""
-    logger.error(f"500 error: {str(e)}")
-    return render_template('500.html'), 500
+    print(f"❌ 500 Error: {str(e)}")
+    return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_ENV') == 'development'
-    
-    logger.info(f"Starting Bite Me Buddy Live Viewer on port {port}")
-    logger.info(f"Python version: {os.sys.version}")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    print(f"🚀 Starting Bite Me Buddy Live Viewer on port {port}")
+    print(f"🔗 Database: bite_me_buddy")
+    print(f"🐍 Python version: 3.9.18")
+    app.run(host='0.0.0.0', port=port)
