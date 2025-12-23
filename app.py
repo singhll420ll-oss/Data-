@@ -1,31 +1,23 @@
 """
 Bite Me Buddy - Live PostgreSQL Database Viewer
-Fixed Version - No Log File Issues
+Compatible with Python 3.13
 """
 
 from flask import Flask, render_template, jsonify, request
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 import os
 from datetime import datetime
-import logging
 
 app = Flask(__name__)
-
-# Simple logging to console only - NO FILE LOGGING
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 # Your Database URL
 DATABASE_URL = "postgresql://bite_me_buddy_user:6Mb7axQ89EkOQTQnqw6shT5CaO2lFY1Z@dpg-d536f8khg0os738kuhm0-a/bite_me_buddy"
 
 def get_db_connection():
-    """Create database connection"""
+    """Create database connection using psycopg (not psycopg2)"""
     try:
-        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
         print("✅ Database connection successful")
         return conn
     except Exception as e:
@@ -34,18 +26,17 @@ def get_db_connection():
 
 @app.route('/')
 def home():
-    """Home page - show HTML interface"""
+    """Home page"""
     print("📄 Home page accessed")
     return render_template('index.html')
 
 @app.route('/api/health')
 def health_check():
-    """Check if database is connected"""
+    """Check database connection"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('SELECT 1')
-        cur.close()
+        with conn.cursor() as cur:
+            cur.execute('SELECT 1')
         conn.close()
         
         print("✅ Health check: Database connected")
@@ -63,20 +54,19 @@ def health_check():
 
 @app.route('/api/tables')
 def get_tables():
-    """Get list of all tables"""
+    """Get all table names"""
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                ORDER BY table_name;
+            """)
+            
+            tables = [row['table_name'] for row in cur.fetchall()]
         
-        cur.execute("""
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public'
-            ORDER BY table_name;
-        """)
-        
-        tables = [row[0] for row in cur.fetchall()]
-        cur.close()
         conn.close()
         
         print(f"✅ Retrieved {len(tables)} tables")
@@ -99,27 +89,27 @@ def get_table_data(table_name):
         limit = request.args.get('limit', default=100, type=int)
         
         conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
         
         # Get column names
-        cur.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = %s
-            ORDER BY ordinal_position;
-        """, (table_name,))
-        
-        columns = [row['column_name'] for row in cur.fetchall()]
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = %s
+                ORDER BY ordinal_position;
+            """, (table_name,))
+            
+            columns = [row['column_name'] for row in cur.fetchall()]
         
         # Get data
         data = []
         if columns:
-            columns_str = ', '.join([f'"{col}"' for col in columns])
-            query = f'SELECT {columns_str} FROM "{table_name}" LIMIT %s'
-            cur.execute(query, (limit,))
-            data = cur.fetchall()
+            with conn.cursor() as cur:
+                columns_str = ', '.join([f'"{col}"' for col in columns])
+                query = f'SELECT {columns_str} FROM "{table_name}" LIMIT %s'
+                cur.execute(query, (limit,))
+                data = cur.fetchall()
         
-        cur.close()
         conn.close()
         
         print(f"✅ Retrieved {len(data)} rows from table '{table_name}'")
@@ -145,18 +135,18 @@ def get_all_data():
         limit = request.args.get('limit', default=50, type=int)
         
         conn = get_db_connection()
-        cur = conn.cursor()
         
         # Get all tables
-        cur.execute("""
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public'
-            ORDER BY table_name;
-        """)
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                ORDER BY table_name;
+            """)
+            
+            tables = [row['table_name'] for row in cur.fetchall()][:5]  # First 5 tables
         
-        tables = [row[0] for row in cur.fetchall()][:5]  # First 5 tables only
-        cur.close()
         conn.close()
         
         result = {}
@@ -164,27 +154,27 @@ def get_all_data():
         for table in tables:
             try:
                 conn = get_db_connection()
-                cur = conn.cursor(cursor_factory=RealDictCursor)
                 
                 # Get columns for this table
-                cur.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = %s
-                    ORDER BY ordinal_position;
-                """, (table,))
-                
-                columns = [row['column_name'] for row in cur.fetchall()]
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name = %s
+                        ORDER BY ordinal_position;
+                    """, (table,))
+                    
+                    columns = [row['column_name'] for row in cur.fetchall()]
                 
                 # Get data
                 data = []
                 if columns:
-                    columns_str = ', '.join([f'"{col}"' for col in columns])
-                    query = f'SELECT {columns_str} FROM "{table}" LIMIT %s'
-                    cur.execute(query, (limit,))
-                    data = cur.fetchall()
+                    with conn.cursor() as cur:
+                        columns_str = ', '.join([f'"{col}"' for col in columns])
+                        query = f'SELECT {columns_str} FROM "{table}" LIMIT %s'
+                        cur.execute(query, (limit,))
+                        data = cur.fetchall()
                 
-                cur.close()
                 conn.close()
                 
                 result[table] = {
@@ -219,21 +209,9 @@ def get_all_data():
             'error': str(e)
         }), 500
 
-@app.errorhandler(404)
-def not_found(e):
-    """Handle 404 errors"""
-    print(f"❌ 404 Error: {request.url}")
-    return jsonify({'error': 'Not found'}), 404
-
-@app.errorhandler(500)
-def server_error(e):
-    """Handle 500 errors"""
-    print(f"❌ 500 Error: {str(e)}")
-    return jsonify({'error': 'Internal server error'}), 500
-
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Starting Bite Me Buddy Live Viewer on port {port}")
     print(f"🔗 Database: bite_me_buddy")
-    print(f"🐍 Python version: 3.9.18")
+    print(f"🐍 Using psycopg[c] for Python 3.13 compatibility")
     app.run(host='0.0.0.0', port=port)
